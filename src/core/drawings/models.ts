@@ -1,0 +1,3 @@
+export const DEFAULT_DRAWING_COLOR = '#ffb020'
+export const DEFAULT_DRAWING_LINE_WIDTH = 1.5
+export const DRAWING_HANDLE_RADIUS = 5

@@ -1,0 +1,42 @@
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC for npm trusted publishing + provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Trusted publishing (OIDC) requires npm >= 11.5.1
+      - run: npm install -g npm@latest
+      - name: Resolve version
+        id: version
+        run: |
+          PKG_VERSION="$(jq -r .version package.json)"
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME#v}" != "$PKG_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $PKG_VERSION" >&2
+            exit 1
+          fi
+          if npm view "fast-financial-charts@$PKG_VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "fast-financial-charts@$PKG_VERSION already published — skipping"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - run: npm publish --provenance
+        if: steps.version.outputs.exists == 'false'
