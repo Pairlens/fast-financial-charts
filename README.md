@@ -1,12 +1,12 @@
 # Fast Financial Charts
 
-[![npm version](https://img.shields.io/npm/v/fast-financial-charts?logo=npm&color=cb3837)](https://www.npmjs.com/package/fast-financial-charts)
-[![npm downloads](https://img.shields.io/npm/dm/fast-financial-charts)](https://www.npmjs.com/package/fast-financial-charts)
-[![license](https://img.shields.io/npm/l/fast-financial-charts)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/%40pairlens%2Ffast-financial-charts?logo=npm&color=cb3837)](https://www.npmjs.com/package/@pairlens/fast-financial-charts)
+[![npm downloads](https://img.shields.io/npm/dm/%40pairlens%2Ffast-financial-charts)](https://www.npmjs.com/package/@pairlens/fast-financial-charts)
+[![license](https://img.shields.io/npm/l/%40pairlens%2Ffast-financial-charts)](./LICENSE)
 
 **A WebGL2 financial charting library for the web: candlesticks, 90 built-in indicators, drawings, multi-pane layouts, live tick streaming, and an AI control surface. Free and MIT licensed.**
 
-`fast-financial-charts` is the chart engine behind the [Pairlens](https://github.com/Pairlens/trading-terminal) trading terminal. It is not a demo extracted from an app: the exact package published here renders live exchange feeds in production, every day, at tick rate. It was built to stand next to commercial charting SDKs and hold its own.
+`@pairlens/fast-financial-charts` is the chart engine behind the [Pairlens](https://github.com/Pairlens/trading-terminal) trading terminal. It is not a demo extracted from an app: the exact package published here renders live exchange feeds in production, every day, at tick rate. It was built to stand next to commercial charting SDKs and hold its own.
 
 Reasons you might pick it over the alternatives:
 
@@ -19,18 +19,18 @@ Reasons you might pick it over the alternatives:
 ## Installation
 
 ```bash
-bun add fast-financial-charts
+bun add @pairlens/fast-financial-charts
 # or
-pnpm add fast-financial-charts
+pnpm add @pairlens/fast-financial-charts
 # or
-npm i fast-financial-charts
+npm i @pairlens/fast-financial-charts
 ```
 
 Installing straight from GitHub (`bun add github:Pairlens/fast-financial-charts`) also works and yields the same package layout.
 
 **The package ships TypeScript source.** Entry points resolve to `.ts`/`.tsx` files, so use a bundler that understands TypeScript out of the box: Vite, esbuild, Bun, Rspack, or webpack with a TS loader. This is also what lets the indicator Web Worker (`new Worker(new URL(...))`) work naturally under modern bundlers. Prebuilt output is planned.
 
-React is an optional peer dependency: the core engine (`fast-financial-charts`, `/mcp`, `/indicators`, `/drawings`, `/theme`) has no React dependency at all; only the `fast-financial-charts/react` entry points need React 19+.
+React is an optional peer dependency: the core engine (`@pairlens/fast-financial-charts`, `/mcp`, `/indicators`, `/drawings`, `/theme`) has no React dependency at all; only the `@pairlens/fast-financial-charts/react` entry points need React 19+.
 
 ## Quick Start (React)
 
@@ -38,11 +38,11 @@ A candlestick chart with an EMA overlay and an RSI pane:
 
 ```tsx
 import { useMemo, useRef } from 'react'
-import { FastFinancialChart } from 'fast-financial-charts/react'
+import { FastFinancialChart } from '@pairlens/fast-financial-charts/react'
 import type {
   FastFinancialChartRef,
   ChartSeriesInput,
-} from 'fast-financial-charts/types'
+} from '@pairlens/fast-financial-charts/types'
 
 export function PairChart() {
   const chartRef = useRef<FastFinancialChartRef>(null)
@@ -495,7 +495,7 @@ Theme updates are supported at runtime and trigger only the relevant overlay/UI 
 ### Theme presets
 
 ```tsx
-import { getThemePreset, DARK_THEME_TOKENS, LIGHT_THEME_TOKENS } from 'fast-financial-charts/theme'
+import { getThemePreset, DARK_THEME_TOKENS, LIGHT_THEME_TOKENS } from '@pairlens/fast-financial-charts/theme'
 
 // Retrieve a full theme token set by name
 const tokens = getThemePreset('light')  // or 'dark'
@@ -587,7 +587,7 @@ Guidance:
 ### Custom indicator
 
 ```tsx
-import type { IndicatorDefinition } from 'fast-financial-charts/types'
+import type { IndicatorDefinition } from '@pairlens/fast-financial-charts/types'
 
 const myIndicator: IndicatorDefinition = {
   type: 'custom:my-indicator',
@@ -611,7 +611,7 @@ const myIndicator: IndicatorDefinition = {
 The `DrawingShapeDefinition` interface provides full control over creation, hit-testing, handle layout, and drag behavior:
 
 ```tsx
-import type { DrawingShapeDefinition } from 'fast-financial-charts/types'
+import type { DrawingShapeDefinition } from '@pairlens/fast-financial-charts/types'
 
 const rayShape: DrawingShapeDefinition = {
   type: 'custom:ray',
@@ -640,7 +640,7 @@ const rayShape: DrawingShapeDefinition = {
 Attach custom Canvas2D rendering to a series at four z-order layers (`behindGrid`, `behindSeries`, `afterSeries`, `topmost`). Primitives can render in the chart pane, price axis, and/or time axis:
 
 ```tsx
-import type { SeriesPrimitiveInput } from 'fast-financial-charts/types'
+import type { SeriesPrimitiveInput } from '@pairlens/fast-financial-charts/types'
 
 const volumeProfile: SeriesPrimitiveInput = {
   seriesId: 'BTC-USD',
@@ -667,7 +667,7 @@ Coordinate helpers available: `priceToY`, `indexToX`, `timeToX`, `yToPrice`, `xT
 Define entirely new series types with custom data formats and Canvas2D rendering. Custom series don't modify the WebGL pipeline: they render as Canvas2D overlays.
 
 ```tsx
-import type { CustomSeriesDefinition } from 'fast-financial-charts/types'
+import type { CustomSeriesDefinition } from '@pairlens/fast-financial-charts/types'
 
 const heatmapDef: CustomSeriesDefinition = {
   type: 'custom:heatmap',
@@ -726,7 +726,7 @@ chartRef.current?.setSeriesOrder(['ETH-USD', 'BTC-USD']) // reorder series
 The package exposes an MCP-compatible tools layer:
 
 ```ts
-import { createChartMcpAdapter } from 'fast-financial-charts/mcp'
+import { createChartMcpAdapter } from '@pairlens/fast-financial-charts/mcp'
 
 const mcp = createChartMcpAdapter(chartRef.current)
 const schema = mcp.getSchema()
@@ -776,15 +776,15 @@ Runtime validation rejects malformed payloads for deterministic tool execution.
 
 Use targeted imports to reduce bundle size:
 
-- `fast-financial-charts`: core engine (no React)
-- `fast-financial-charts/react`: `<FastFinancialChart />`, `<DepthChart />`, hooks
-- `fast-financial-charts/types`
-- `fast-financial-charts/mcp`
-- `fast-financial-charts/indicators`
-- `fast-financial-charts/drawings`
-- `fast-financial-charts/theme`
-- `fast-financial-charts/financial-chart`
-- `fast-financial-charts/depth-chart`
+- `@pairlens/fast-financial-charts`: core engine (no React)
+- `@pairlens/fast-financial-charts/react`: `<FastFinancialChart />`, `<DepthChart />`, hooks
+- `@pairlens/fast-financial-charts/types`
+- `@pairlens/fast-financial-charts/mcp`
+- `@pairlens/fast-financial-charts/indicators`
+- `@pairlens/fast-financial-charts/drawings`
+- `@pairlens/fast-financial-charts/theme`
+- `@pairlens/fast-financial-charts/financial-chart`
+- `@pairlens/fast-financial-charts/depth-chart`
 
 The package is configured with `sideEffects: false`.
 
@@ -910,7 +910,7 @@ bun run build
 
 ## Releasing (maintainers)
 
-Releases are published to NPM by CI (`.github/workflows/publish.yml`) whenever a `v*` tag is pushed. The workflow re-runs typecheck + tests, verifies the tag matches `package.json`, and publishes with [provenance](https://docs.npmjs.com/generating-provenance-statements). It authenticates via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC, no token secret): the trusted publisher is configured on the package's npm access page (GitHub org `Pairlens`, repo `fast-financial-charts`, workflow `publish.yml`).
+Releases are published to NPM by CI (`.github/workflows/publish.yml`) whenever a `v*` tag is pushed. The workflow re-runs typecheck + tests, verifies the tag matches `package.json`, and publishes with [provenance](https://docs.npmjs.com/generating-provenance-statements). It authenticates via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC, no token secret): the trusted publisher is configured on the package's npm access page (GitHub org `Pairlens`, repo `@pairlens/fast-financial-charts`, workflow `publish.yml`).
 
 ```bash
 npm version minor        # bumps package.json and creates the vX.Y.Z tag

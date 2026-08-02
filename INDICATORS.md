@@ -1,6 +1,6 @@
 # Indicator Coverage
 
-The full list of built-in indicators in `fast-financial-charts`, with their type ids, pane placement, and key parameters (defaults in parentheses). Coverage is tracked against [TradingView Advanced Charts](https://www.tradingview.com/charting-library-docs/latest/ui_elements/indicators/Indicators-List/) and its 146 built-in indicators.
+The full list of built-in indicators in `@pairlens/fast-financial-charts`, with their type ids, pane placement, and key parameters (defaults in parentheses). Coverage is tracked against [TradingView Advanced Charts](https://www.tradingview.com/charting-library-docs/latest/ui_elements/indicators/Indicators-List/) and its 146 built-in indicators.
 
 ## Supported (90 / 146)
 

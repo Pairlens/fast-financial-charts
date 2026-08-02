@@ -32,9 +32,9 @@ jobs:
             echo "Tag $GITHUB_REF_NAME does not match package.json version $PKG_VERSION" >&2
             exit 1
           fi
-          if npm view "fast-financial-charts@$PKG_VERSION" version >/dev/null 2>&1; then
+          if npm view "@pairlens/fast-financial-charts@$PKG_VERSION" version >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "fast-financial-charts@$PKG_VERSION already published — skipping"
+            echo "@pairlens/fast-financial-charts@$PKG_VERSION already published — skipping"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
