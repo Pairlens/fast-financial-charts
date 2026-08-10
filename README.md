@@ -6,6 +6,8 @@
 
 **A WebGL2 financial charting library for the web: candlesticks, 90 built-in indicators, drawings, multi-pane layouts, live tick streaming, and an AI control surface. Free and MIT licensed.**
 
+**[▶ Live demo](https://pairlens.finance/charts)** — interactive candlesticks, the chart-type gallery, the drawing toolkit, and a streaming tick feed, all running this package in the browser.
+
 `@pairlens/fast-financial-charts` is the chart engine behind the [Pairlens](https://github.com/Pairlens/trading-terminal) trading terminal. It is not a demo extracted from an app: the exact package published here renders live exchange feeds in production, every day, at tick rate. It was built to stand next to commercial charting SDKs and hold its own.
 
 Reasons you might pick it over the alternatives:
