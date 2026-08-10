@@ -15,12 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run test
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+      - name: Lint published package shape
+        run: bun run lint:package
+      - name: Smoke-test the packed tarball in a clean consumer project
+        run: bun run smoke
       # Trusted publishing (OIDC) requires npm >= 11.5.1
       - run: npm install -g npm@latest
       - name: Resolve version

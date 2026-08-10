@@ -26,11 +26,21 @@ pnpm add @pairlens/fast-financial-charts
 npm i @pairlens/fast-financial-charts
 ```
 
+The package ships prebuilt JavaScript and type declarations — no loader, transpiler, or bundler configuration required. Every entry point resolves to both ESM and CommonJS with matching `.d.ts`:
+
+| | Output | Notes |
+| --- | --- | --- |
+| `import` | `dist/esm` | ES2022, one module per source file, fully tree-shakeable (`sideEffects: false`) |
+| `require` | `dist/cjs` | Same tree transpiled to CommonJS |
+| Types | `.d.ts` beside both | Resolves under `bundler`, `node16`, and legacy `node10` resolution |
+
+Every release is gated on a smoke test that packs the tarball, installs it into a clean project, and checks that all eleven subpaths import under Node ESM, `require` under CommonJS, bundle for the browser with no TypeScript loader configured, and typecheck under both `bundler` and `node16` resolution — alongside [`publint --strict`](https://publint.dev) and [`are-the-types-wrong`](https://arethetypeswrong.github.io), which pass clean. For the 2.0.0 release, production builds against the packed tarball were additionally verified by hand on Next.js 15 (webpack and Turbopack) and Vite 7. Because the shipped worker is real JavaScript, those bundlers code-split the indicator Web Worker (`new Worker(new URL(...), { type: 'module' })`) into its own chunk with no configuration; where a bundler cannot resolve it, the engine falls back to inline indicator compute rather than failing.
+
 Installing straight from GitHub (`bun add github:Pairlens/fast-financial-charts`) also works and yields the same package layout.
 
-**The package ships TypeScript source.** Entry points resolve to `.ts`/`.tsx` files, so use a bundler that understands TypeScript out of the box: Vite, esbuild, Bun, Rspack, or webpack with a TS loader. This is also what lets the indicator Web Worker (`new Worker(new URL(...))`) work naturally under modern bundlers. Prebuilt output is planned.
+React is an optional peer dependency. At runtime the core engine (`@pairlens/fast-financial-charts`, `/mcp`, `/indicators`, `/drawings`, `/theme`) never imports React — only the `@pairlens/fast-financial-charts/react` entry points do, and they need React 19+. At the type level the shipped declarations reference `@types/react` for the React component's prop types (`style`, the `renderHud`/`renderTopBar` slots), so `@types/react` is declared as an optional peer; TypeScript users who never touch React should install it as a dev dependency to typecheck against `/types`.
 
-React is an optional peer dependency: the core engine (`@pairlens/fast-financial-charts`, `/mcp`, `/indicators`, `/drawings`, `/theme`) has no React dependency at all; only the `@pairlens/fast-financial-charts/react` entry points need React 19+.
+Node 18 or newer is required for tooling; the runtime itself targets any browser with WebGL2.
 
 ## Quick Start (React)
 
@@ -785,8 +795,10 @@ Use targeted imports to reduce bundle size:
 - `@pairlens/fast-financial-charts/theme`
 - `@pairlens/fast-financial-charts/financial-chart`
 - `@pairlens/fast-financial-charts/depth-chart`
+- `@pairlens/fast-financial-charts/react/financial-chart`
+- `@pairlens/fast-financial-charts/react/depth-chart`
 
-The package is configured with `sideEffects: false`.
+Every entry point is emitted per-source-file rather than pre-bundled, so all of them share one copy of the module graph no matter how many you import, and `sideEffects: false` lets your bundler drop what you do not touch. Importing all eleven at once produces a ~616 kB unminified browser bundle; a React candlestick chart with indicators lands far below that.
 
 ## Performance Recommendations for Consumers
 
@@ -903,14 +915,18 @@ Planned for next iterations:
 From package root:
 
 ```bash
-bun run typecheck
-bun run test
-bun run build
+bun run typecheck        # tsc --noEmit over src
+bun run test             # 274 unit + benchmark tests
+bun run build            # emit dist/esm + dist/cjs into ./dist
+bun run lint:package     # publint --strict + are-the-types-wrong
+bun run smoke            # pack, install into a clean project, import/require/bundle/typecheck it
 ```
+
+`build` runs `scripts/build.mjs`: `tsc` emits per-file ESM plus declarations into `dist/esm`, every relative specifier is rewritten to an explicit `./x.js` (the build fails if one cannot be resolved on disk), and the result is transpiled to `dist/cjs`. It also runs automatically on `prepack`, so `npm pack` and `npm publish` can never ship a stale or missing `dist`.
 
 ## Releasing (maintainers)
 
-Releases are published to NPM by CI (`.github/workflows/publish.yml`) whenever a `v*` tag is pushed. The workflow re-runs typecheck + tests, verifies the tag matches `package.json`, and publishes with [provenance](https://docs.npmjs.com/generating-provenance-statements). It authenticates via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC, no token secret): the trusted publisher is configured on the package's npm access page (GitHub org `Pairlens`, repo `@pairlens/fast-financial-charts`, workflow `publish.yml`).
+Releases are published to NPM by CI (`.github/workflows/publish.yml`) whenever a `v*` tag is pushed. The workflow re-runs typecheck, tests, the package lint and the consumer smoke test, verifies the tag matches `package.json`, and publishes with [provenance](https://docs.npmjs.com/generating-provenance-statements). It authenticates via [trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC, no token secret): the trusted publisher is configured on the package's npm access page (GitHub org `Pairlens`, repo `@pairlens/fast-financial-charts`, workflow `publish.yml`).
 
 ```bash
 npm version minor        # bumps package.json and creates the vX.Y.Z tag

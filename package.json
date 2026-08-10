@@ -1,6 +1,6 @@
 {
   "name": "@pairlens/fast-financial-charts",
-  "version": "1.5.3",
+  "version": "2.0.0",
   "description": "WebGL2 financial charts for the web: 90 indicators, drawings, multi-pane layouts, live tick streaming, and an MCP tool surface for AI agents. Headless, MIT licensed, and battle-tested in the Pairlens trading terminal.",
   "license": "MIT",
   "repository": {
@@ -24,19 +24,29 @@
   ],
   "type": "module",
   "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json --noEmit",
+    "build": "node scripts/build.mjs",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "bun test src/__tests__/*.test.ts"
+    "test": "bun test src/__tests__/*.test.ts",
+    "lint:package": "publint --strict && attw --pack .",
+    "smoke": "node scripts/smoke-test.mjs",
+    "prepack": "node scripts/build.mjs"
   },
   "peerDependencies": {
+    "@types/react": ">=19",
     "react": ">=19",
     "react-dom": ">=19"
   },
   "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },
@@ -45,26 +55,147 @@
     }
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "publint": "^0.3.14",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "typescript": "^5.9.3"
   },
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./types": "./src/types/index.ts",
-    "./mcp": "./src/mcp.ts",
-    "./indicators": "./src/indicators.ts",
-    "./drawings": "./src/drawings.ts",
-    "./theme": "./src/theme.ts",
-    "./financial-chart": "./src/financial-chart.ts",
-    "./depth-chart": "./src/depth-chart.ts",
-    "./react": "./src/react/index.ts",
-    "./react/financial-chart": "./src/react/financial-chart.ts",
-    "./react/depth-chart": "./src/react/depth-chart.ts"
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    },
+    "./types": {
+      "import": {
+        "types": "./dist/esm/types/index.d.ts",
+        "default": "./dist/esm/types/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/types/index.d.ts",
+        "default": "./dist/cjs/types/index.js"
+      }
+    },
+    "./mcp": {
+      "import": {
+        "types": "./dist/esm/mcp.d.ts",
+        "default": "./dist/esm/mcp.js"
+      },
+      "require": {
+        "types": "./dist/cjs/mcp.d.ts",
+        "default": "./dist/cjs/mcp.js"
+      }
+    },
+    "./indicators": {
+      "import": {
+        "types": "./dist/esm/indicators.d.ts",
+        "default": "./dist/esm/indicators.js"
+      },
+      "require": {
+        "types": "./dist/cjs/indicators.d.ts",
+        "default": "./dist/cjs/indicators.js"
+      }
+    },
+    "./drawings": {
+      "import": {
+        "types": "./dist/esm/drawings.d.ts",
+        "default": "./dist/esm/drawings.js"
+      },
+      "require": {
+        "types": "./dist/cjs/drawings.d.ts",
+        "default": "./dist/cjs/drawings.js"
+      }
+    },
+    "./theme": {
+      "import": {
+        "types": "./dist/esm/theme.d.ts",
+        "default": "./dist/esm/theme.js"
+      },
+      "require": {
+        "types": "./dist/cjs/theme.d.ts",
+        "default": "./dist/cjs/theme.js"
+      }
+    },
+    "./financial-chart": {
+      "import": {
+        "types": "./dist/esm/financial-chart.d.ts",
+        "default": "./dist/esm/financial-chart.js"
+      },
+      "require": {
+        "types": "./dist/cjs/financial-chart.d.ts",
+        "default": "./dist/cjs/financial-chart.js"
+      }
+    },
+    "./depth-chart": {
+      "import": {
+        "types": "./dist/esm/depth-chart.d.ts",
+        "default": "./dist/esm/depth-chart.js"
+      },
+      "require": {
+        "types": "./dist/cjs/depth-chart.d.ts",
+        "default": "./dist/cjs/depth-chart.js"
+      }
+    },
+    "./react": {
+      "import": {
+        "types": "./dist/esm/react/index.d.ts",
+        "default": "./dist/esm/react/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/react/index.d.ts",
+        "default": "./dist/cjs/react/index.js"
+      }
+    },
+    "./react/financial-chart": {
+      "import": {
+        "types": "./dist/esm/react/financial-chart.d.ts",
+        "default": "./dist/esm/react/financial-chart.js"
+      },
+      "require": {
+        "types": "./dist/cjs/react/financial-chart.d.ts",
+        "default": "./dist/cjs/react/financial-chart.js"
+      }
+    },
+    "./react/depth-chart": {
+      "import": {
+        "types": "./dist/esm/react/depth-chart.d.ts",
+        "default": "./dist/esm/react/depth-chart.js"
+      },
+      "require": {
+        "types": "./dist/cjs/react/depth-chart.d.ts",
+        "default": "./dist/cjs/react/depth-chart.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "types": ["./dist/esm/types/index.d.ts"],
+      "mcp": ["./dist/esm/mcp.d.ts"],
+      "indicators": ["./dist/esm/indicators.d.ts"],
+      "drawings": ["./dist/esm/drawings.d.ts"],
+      "theme": ["./dist/esm/theme.d.ts"],
+      "financial-chart": ["./dist/esm/financial-chart.d.ts"],
+      "depth-chart": ["./dist/esm/depth-chart.d.ts"],
+      "react": ["./dist/esm/react/index.d.ts"],
+      "react/financial-chart": ["./dist/esm/react/financial-chart.d.ts"],
+      "react/depth-chart": ["./dist/esm/react/depth-chart.d.ts"]
+    }
   },
   "files": [
-    "src",
-    "!src/__tests__",
+    "dist",
+    "CHANGELOG.md",
     "INDICATORS.md",
     "README.md",
     "LICENSE"

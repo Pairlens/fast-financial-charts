@@ -175,5 +175,16 @@ export const createIndicatorWorkerClient = (
     return new InlineIndicatorWorkerClient()
   }
 
-  return new BrowserIndicatorWorkerClient()
+  try {
+    return new BrowserIndicatorWorkerClient()
+  } catch (error) {
+    // The module URL cannot always be resolved — a CommonJS build has no
+    // `import.meta.url`, and some bundlers rewrite worker URLs in ways that
+    // throw at construction. Inline compute keeps the chart correct.
+    console.warn(
+      '[charts] Indicator worker could not be created, falling back to inline compute:',
+      error instanceof Error ? error.message : error,
+    )
+    return new InlineIndicatorWorkerClient()
+  }
 }
