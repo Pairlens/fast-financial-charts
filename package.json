@@ -1,6 +1,6 @@
 {
   "name": "@pairlens/fast-financial-charts",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "WebGL2 financial charts for the web: 90 indicators, drawings, multi-pane layouts, live tick streaming, and an MCP tool surface for AI agents. Headless, MIT licensed, and battle-tested in the Pairlens trading terminal.",
   "license": "MIT",
   "repository": {
@@ -181,16 +181,36 @@
   },
   "typesVersions": {
     "*": {
-      "types": ["./dist/esm/types/index.d.ts"],
-      "mcp": ["./dist/esm/mcp.d.ts"],
-      "indicators": ["./dist/esm/indicators.d.ts"],
-      "drawings": ["./dist/esm/drawings.d.ts"],
-      "theme": ["./dist/esm/theme.d.ts"],
-      "financial-chart": ["./dist/esm/financial-chart.d.ts"],
-      "depth-chart": ["./dist/esm/depth-chart.d.ts"],
-      "react": ["./dist/esm/react/index.d.ts"],
-      "react/financial-chart": ["./dist/esm/react/financial-chart.d.ts"],
-      "react/depth-chart": ["./dist/esm/react/depth-chart.d.ts"]
+      "types": [
+        "./dist/esm/types/index.d.ts"
+      ],
+      "mcp": [
+        "./dist/esm/mcp.d.ts"
+      ],
+      "indicators": [
+        "./dist/esm/indicators.d.ts"
+      ],
+      "drawings": [
+        "./dist/esm/drawings.d.ts"
+      ],
+      "theme": [
+        "./dist/esm/theme.d.ts"
+      ],
+      "financial-chart": [
+        "./dist/esm/financial-chart.d.ts"
+      ],
+      "depth-chart": [
+        "./dist/esm/depth-chart.d.ts"
+      ],
+      "react": [
+        "./dist/esm/react/index.d.ts"
+      ],
+      "react/financial-chart": [
+        "./dist/esm/react/financial-chart.d.ts"
+      ],
+      "react/depth-chart": [
+        "./dist/esm/react/depth-chart.d.ts"
+      ]
     }
   },
   "files": [
