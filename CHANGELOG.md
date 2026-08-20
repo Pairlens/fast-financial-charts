@@ -3,6 +3,26 @@
 All notable changes to `@pairlens/fast-financial-charts` are documented here.
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.1.0
+
+### Fixed
+
+- **Replacing a short series with a long one no longer strands the viewport at
+  the right edge.** `setSeries` kept a right-anchored window in place by
+  shifting both viewport indices by the bar-count delta. That is only right
+  while the window lies inside the data. A window WIDER than its series is also
+  right-anchored: two bars under the default 200-bar preset with `rightOffset`
+  20 gives `[0, 21]`, and replacing that series with 302 bars shifted the window
+  to `[300, 321]`, so the chart drew one candle against empty space until the
+  user hit Fit Content or Scroll to latest.
+
+  The viewport is now re-anchored instead of shifted. A window that covered the
+  whole old series keeps covering the whole new one; a window that lay inside
+  its data keeps its span at the new right edge, which is what the shift already
+  did; and a window whose end overshot the old right edge (a `rightOffset`
+  change landing between the last clamp and the replacement) comes back onto the
+  data instead of hanging past it.
+
 ## 2.0.0
 
 Packaging release. The library API is unchanged; what the package *resolves to*

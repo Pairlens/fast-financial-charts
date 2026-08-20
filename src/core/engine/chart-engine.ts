@@ -6,7 +6,11 @@ import {
 } from '../data/scales'
 import { findBarIndexByTs } from '../data/binary-search'
 import { isPriceTransformChartType } from '../data/price-transforms'
-import { clampViewport, viewportFromPreset } from '../data/viewport-slicer'
+import {
+  clampViewport,
+  reanchorViewportToRight,
+  viewportFromPreset,
+} from '../data/viewport-slicer'
 import { createDefaultDrawingRegistry } from '../drawings/registry'
 import { toDrawingPoint, toXFromTs, toYFromPrice } from '../drawings/transforms'
 import { findDrawingById } from '../drawings/tools/select-tool'
@@ -3533,11 +3537,14 @@ export class ChartEngine {
       ) {
         // Keep viewport anchored to the latest bar (+rightOffset) when replacing a full
         // series payload (e.g. backend snapshot refresh) while user is at the right edge.
-        const deltaBars = primaryBars.length - oldBarsLength
-        this.store.setViewport({
-          startIndex: oldViewport.startIndex + deltaBars,
-          endIndex: oldViewport.endIndex + deltaBars,
-        })
+        this.store.setViewport(
+          reanchorViewportToRight(
+            oldViewport,
+            primaryBars.length,
+            oldBarsLength,
+            rightOffset,
+          ),
+        )
       } else {
         this.store.setViewport(
           clampViewport(

@@ -128,3 +128,42 @@ export const viewportSpanFromBarSpacing = (
   const clamped = Math.max(minBarSpacing, Math.min(maxBarSpacing, barSpacing))
   return Math.max(2, Math.round(chartWidth / clamped))
 }
+
+/**
+ * Re-anchor a right-anchored viewport onto a replaced series. Used when a full
+ * series payload swaps in under a window that was sitting at the right edge.
+ *
+ * Two things it does that shifting both indices by the bar-count delta did not.
+ *
+ * A window that covered the WHOLE old series keeps covering the whole series.
+ * Its span was never a zoom the user picked, it was whatever the old data
+ * allowed: `viewportFromPreset` clamps a 200-bar request down to [0, 21] over a
+ * 2-bar series with rightOffset 20. Carrying that 22-wide span onto 302 bars
+ * lands on [300, 321], the end of the data, one candle and empty space, until
+ * the user hits Fit Content.
+ *
+ * And it anchors to the new right edge rather than to the old end plus the
+ * delta, so a window whose end overshot the old edge (a rightOffset change
+ * landing between the last clamp and the replacement) comes back onto the data
+ * instead of hanging past it.
+ */
+export const reanchorViewportToRight = (
+  viewport: ChartViewport,
+  barsLength: number,
+  oldBarsLength: number,
+  rightOffset = 0,
+): ChartViewport => {
+  const endIndex = barsLength - 1 + rightOffset
+  const oldMaxIndex = oldBarsLength - 1 + rightOffset
+
+  if (viewport.startIndex <= 0 && viewport.endIndex >= oldMaxIndex) {
+    return { startIndex: 0, endIndex }
+  }
+
+  const span = viewport.endIndex - viewport.startIndex
+
+  return {
+    startIndex: Math.max(0, endIndex - span),
+    endIndex,
+  }
+}
