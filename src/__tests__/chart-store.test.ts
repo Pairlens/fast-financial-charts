@@ -79,6 +79,9 @@ describe('chart store snapshots', () => {
     if ('series' in full) {
       expect(full.series).toHaveLength(1)
       expect(full.indicatorResults).toHaveLength(1)
+      // The engine always returned this; the type used to leave it out, so a
+      // consumer asking for values had to guard with `'priceScaleMode' in`.
+      expect(full.priceScaleMode).toBe(store.getSnapshotLite().priceScaleMode)
     }
   })
 })

@@ -179,6 +179,7 @@ export type ChartSnapshot = {
   timeframe: ChartSnapshotLite['timeframe']
   compareMode: ChartSnapshotLite['compareMode']
   chartType: ChartSnapshotLite['chartType']
+  priceScaleMode: ChartSnapshotLite['priceScaleMode']
   viewport: ChartSnapshotLite['viewport']
   series: Array<ChartSeriesInput>
   indicators: ChartSnapshotLite['indicators']
