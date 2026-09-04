@@ -1,6 +1,6 @@
 {
   "name": "@pairlens/fast-financial-charts",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "WebGL2 financial charts for the web: 90 indicators, drawings, multi-pane layouts, live tick streaming, and an MCP tool surface for AI agents. Headless, MIT licensed, and battle-tested in the Pairlens trading terminal.",
   "license": "MIT",
   "repository": {
