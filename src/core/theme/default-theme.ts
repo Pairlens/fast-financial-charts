@@ -11,7 +11,7 @@ export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
   maxFps: 60,
   enableHiDpi: true,
   indicatorWorker: true,
-  viewportMinBars: 20,
+  viewportMinBars: 5,
 }
 
 export const DEFAULT_INTERACTION_CONFIG: InteractionConfig = {

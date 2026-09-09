@@ -1,11 +1,9 @@
 import { valueToY } from '../../data/scales'
 import type { IndicatorPresenter } from '../../../types'
+import { getVisibleBars } from '../../data/viewport-slicer'
 
 export const volumePresenter: IndicatorPresenter = (context) => {
-  const visibleBars = context.bars.slice(
-    context.viewport.startIndex,
-    context.viewport.endIndex + 1,
-  )
+  const visibleBars = getVisibleBars(context.bars, context.viewport)
   if (visibleBars.length === 0) {
     return
   }

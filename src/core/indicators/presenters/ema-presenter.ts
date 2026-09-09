@@ -1,13 +1,11 @@
 import { computePriceRange, valueToY } from '../../data/scales'
 import { strokeLine, toLinePoints } from './utils'
 import type { IndicatorPresenter } from '../../../types'
+import { getVisibleBars } from '../../data/viewport-slicer'
 
 export const emaPresenter: IndicatorPresenter = (context) => {
   const range = computePriceRange(
-    context.bars.slice(
-      context.viewport.startIndex,
-      context.viewport.endIndex + 1,
-    ),
+    getVisibleBars(context.bars, context.viewport),
   )
   const points = toLinePoints(
     context.bars,

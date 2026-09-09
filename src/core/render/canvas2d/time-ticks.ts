@@ -354,8 +354,8 @@ export const computeTimeAxisTicks = (
   if (bars.length === 0 || chartWidth <= 0) return []
 
   const lastIndex = bars.length - 1
-  const start = Math.max(0, Math.min(viewport.startIndex, lastIndex))
-  const end = Math.max(start, Math.min(viewport.endIndex, lastIndex))
+  const start = Math.max(0, Math.min(Math.floor(viewport.startIndex), lastIndex))
+  const end = Math.max(start, Math.min(Math.ceil(viewport.endIndex), lastIndex))
   // Slot count comes from the raw viewport so a right-hand offset of empty
   // bars keeps the same bar↔x mapping the series and grid use.
   const slots = Math.max(1, viewport.endIndex - viewport.startIndex + 1)

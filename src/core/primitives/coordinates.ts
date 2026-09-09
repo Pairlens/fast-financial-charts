@@ -48,7 +48,7 @@ export const createCoordinateHelpers = (
     },
 
     xToIndex: (x: number): number => {
-      return Math.round((x / plotWidth) * total + viewport.startIndex - 0.5)
+      return Math.floor((x / plotWidth) * total + viewport.startIndex)
     },
   }
 }

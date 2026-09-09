@@ -2,12 +2,10 @@ import { computePriceRange, valueToY } from '../../data/scales'
 import { findBarIndexByTs } from '../../data/binary-search'
 import { strokeLine } from './utils'
 import type { IndicatorPresenter } from '../../../types'
+import { getVisibleBars, isIndexVisible } from '../../data/viewport-slicer'
 
 export const bollingerPresenter: IndicatorPresenter = (context) => {
-  const visibleBars = context.bars.slice(
-    context.viewport.startIndex,
-    context.viewport.endIndex + 1,
-  )
+  const visibleBars = getVisibleBars(context.bars, context.viewport)
   const range = computePriceRange(visibleBars)
   const total = Math.max(
     1,
@@ -21,8 +19,7 @@ export const bollingerPresenter: IndicatorPresenter = (context) => {
   for (const point of context.values) {
     const index = findBarIndexByTs(context.bars, point.ts)
     if (
-      index < context.viewport.startIndex ||
-      index > context.viewport.endIndex
+      !isIndexVisible(context.viewport, index)
     ) {
       continue
     }

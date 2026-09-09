@@ -8,6 +8,7 @@ import type {
   IndicatorInstance,
   NumericRange,
 } from '../../../../types'
+import { isIndexVisible } from '../../../data/viewport-slicer'
 
 type OverlayIndicatorPassInput = {
   indicators: Array<IndicatorInstance>
@@ -53,8 +54,7 @@ export const renderOverlayIndicatorsPass = (
 
       const index = findBarIndexByTs(input.bars, value.ts)
       if (
-        index < input.viewport.startIndex ||
-        index > input.viewport.endIndex
+        !isIndexVisible(input.viewport, index)
       ) {
         continue
       }

@@ -1,3 +1,12 @@
+/**
+ * The visible window over the primary series, in bar-index space.
+ *
+ * Both edges are FRACTIONAL. Bar `i` occupies `[i, i + 1)`, the window shows
+ * `[startIndex, endIndex + 1)`, and the visible span is
+ * `endIndex - startIndex + 1`. Zoom and pan move the edges continuously so the
+ * bar under the cursor stays under the cursor; use `Math.floor(startIndex)`
+ * and `Math.ceil(endIndex)` when you need the integer bars on screen.
+ */
 export type ChartViewport = {
   startIndex: number
   endIndex: number
@@ -35,9 +44,9 @@ export type TimeScaleConfig = {
   rightOffset?: number
   /** Pixel width per bar; controls zoom level (default 6) */
   barSpacing?: number
-  /** Minimum pixel width per bar */
+  /** Minimum pixel width per bar; the zoom-out ceiling (default 0.5) */
   minBarSpacing?: number
-  /** Maximum pixel width per bar */
+  /** Maximum pixel width per bar; the zoom-in floor (default half the plot) */
   maxBarSpacing?: number
   /** Prevent scrolling past the first bar */
   fixLeftEdge?: boolean

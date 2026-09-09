@@ -1,6 +1,7 @@
 import { computePriceRange, valueToY } from '../../data/scales'
 import { drawTitleLabel, strokeLine, toMultiLinePoints } from './utils'
 import type { IndicatorPresenter } from '../../../types'
+import { getVisibleBars } from '../../data/viewport-slicer'
 
 export const createMaCrossPresenter = (
   labelFn: (params: Record<string, boolean | number | string>) => string,
@@ -8,10 +9,7 @@ export const createMaCrossPresenter = (
 ): IndicatorPresenter => {
   return (context) => {
     const { ctx, width, height, theme, indicator } = context
-    const visibleBars = context.bars.slice(
-      context.viewport.startIndex,
-      context.viewport.endIndex + 1,
-    )
+    const visibleBars = getVisibleBars(context.bars, context.viewport)
     const range = computePriceRange(visibleBars)
 
     const lines = toMultiLinePoints(

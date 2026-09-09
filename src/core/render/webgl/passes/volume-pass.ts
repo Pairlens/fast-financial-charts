@@ -5,6 +5,7 @@ import type {
   ChartViewport,
   NumericRange,
 } from '../../../../types'
+import { visibleBarRange } from '../../../data/viewport-slicer'
 
 type VolumePassInput = {
   bars: Array<ChartBar>
@@ -55,8 +56,7 @@ export const renderVolumePass = (input: VolumePassInput): void => {
   const { bars, viewport, lineProgram, theme } = input
   const heightRatio = input.heightRatio ?? 0.18
 
-  const start = Math.max(0, viewport.startIndex)
-  const end = Math.min(bars.length - 1, viewport.endIndex)
+  const { start, end } = visibleBarRange(viewport, bars.length)
   if (end < start) return
 
   // Find max volume in visible range for scaling

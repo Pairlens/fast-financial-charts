@@ -3,6 +3,59 @@
 All notable changes to `@pairlens/fast-financial-charts` are documented here.
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.2.0
+
+### Changed
+
+- **Zoom and pan are continuous and calibrated against TradingView.** The
+  viewport's `startIndex` and `endIndex` are fractional now. Every gesture is
+  anchored, so the bar under the cursor (or between the fingers) keeps its x,
+  and zoom steps are symmetric in log space, so eight notches in and eight out
+  land on the same view. Drag pan and its inertia move by fractional bars, so
+  the chart follows the pointer pixel for pixel instead of snapping a bar at a
+  time. Consumers that index `bars[viewport.endIndex]` must round first; the
+  new `visibleBarRange`, `getVisibleBars`, `isIndexVisible` and
+  `barIndexAtRatio` helpers do it right.
+
+- **Wheel zoom is proportional to the delta.** A mouse notch (delta 100) is a
+  10% step; a trackpad tick of 3 is 0.3%. The step used to be a fixed 12% per
+  event, and a two-finger flick is thirty events, so on a Mac every flick
+  landed on the minimum span or the whole history.
+
+- **Wheel zoom glides.** Each event moves a target and a `requestAnimationFrame`
+  loop eases the span toward it (90 ms for notches, 40 ms for a trackpad
+  stream), so a burst of notches compounds into one motion instead of five
+  jumps. `handleScale.smoothWheel: false` restores per-event snapping.
+
+- **`viewportMinBars` defaults to 5, down from 20**, and gestures respect
+  `timeScale.minBarSpacing` (default 0.5 px) and `maxBarSpacing` (default half
+  the plot width).
+
+### Fixed
+
+- **A trackpad pinch zooms the time axis, not the price axis.** Browsers
+  deliver a pinch as a Ctrl + wheel event, and Ctrl + wheel used to scale the
+  price range by 8% per event: forty events of pinch blew the price axis up
+  21× and left autoscale off. Price-axis wheel zoom now lives over the axis
+  gutter and on Alt/Option (or Cmd) + wheel, anchored at the price under the
+  cursor and bounded so the range can neither collapse nor run away.
+
+- **A horizontal two-finger swipe pans.** A pure horizontal delta has
+  `deltaY === 0`, which the old handler read as "zoom in". Shift + wheel pans
+  as well.
+
+- **Firefox wheel deltas (line mode) are scaled to pixels**, so one notch is one
+  step there too.
+
+- **Pinch zooms about the fingers** and a two-finger drag pans, instead of
+  scaling about the centre of the viewport.
+
+### Added
+
+- **Drag on the time axis to zoom**, anchored at the right edge, and
+  **double-click the time axis** to reset to `defaultViewport`. Both honour
+  `handleScale.axisPressedMouseMove` and `axisDoubleClickReset`.
+
 ## 2.1.0
 
 ### Fixed

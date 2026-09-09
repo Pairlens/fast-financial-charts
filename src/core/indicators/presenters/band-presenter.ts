@@ -2,13 +2,11 @@ import { findBarIndexByTs } from '../../data/binary-search'
 import { computePriceRange, valueToY } from '../../data/scales'
 import { fillBetweenLines, strokeLine } from './utils'
 import type { IndicatorPresenter } from '../../../types'
+import { getVisibleBars, isIndexVisible } from '../../data/viewport-slicer'
 
 export const createBandPresenter = (_label: string): IndicatorPresenter => {
   return (context) => {
-    const visibleBars = context.bars.slice(
-      context.viewport.startIndex,
-      context.viewport.endIndex + 1,
-    )
+    const visibleBars = getVisibleBars(context.bars, context.viewport)
     const range = computePriceRange(visibleBars)
     const total = Math.max(
       1,
@@ -22,8 +20,7 @@ export const createBandPresenter = (_label: string): IndicatorPresenter => {
     for (const point of context.values) {
       const index = findBarIndexByTs(context.bars, point.ts)
       if (
-        index < context.viewport.startIndex ||
-        index > context.viewport.endIndex
+        !isIndexVisible(context.viewport, index)
       ) {
         continue
       }

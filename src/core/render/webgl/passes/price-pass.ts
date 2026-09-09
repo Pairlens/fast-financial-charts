@@ -27,6 +27,7 @@ import type {
   CompareMode,
   NumericRange,
 } from '../../../../types'
+import { getVisibleBars, isIndexVisible, visibleBarRange } from '../../../data/viewport-slicer'
 
 type PricePassInput = {
   series: Array<ChartSeriesInput>
@@ -786,10 +787,7 @@ export const renderPricePass = (input: PricePassInput): PricePassResult => {
     }
   }
 
-  const primaryVisibleBars = primarySeries.bars.slice(
-    input.viewport.startIndex,
-    input.viewport.endIndex + 1,
-  )
+  const primaryVisibleBars = getVisibleBars(primarySeries.bars, input.viewport)
   // For percentage/indexed modes, compute the range in the transformed space
   const computedPrimaryRange = computePriceRangeForMode(
     primaryVisibleBars,
@@ -824,15 +822,11 @@ export const renderPricePass = (input: PricePassInput): PricePassResult => {
       seriesIndex += 1
     ) {
       const series = visibleSeries[seriesIndex]
-      const visibleBars = series.bars.slice(
-        input.viewport.startIndex,
-        input.viewport.endIndex + 1,
-      )
+      const visibleBars = getVisibleBars(series.bars, input.viewport)
       const seriesRange = computePriceRangeForMode(visibleBars, mode)
 
       // Compare mode: NDC-baked data with identity uniforms (no transform in shader)
-      const start = Math.max(0, input.viewport.startIndex)
-      const end = Math.min(series.bars.length - 1, input.viewport.endIndex)
+      const { start, end } = visibleBarRange(input.viewport, series.bars.length)
       if (end >= start) {
         const count = end - start + 1
         const buf = ensureLineBuffer(state, count)
@@ -877,8 +871,7 @@ export const renderPricePass = (input: PricePassInput): PricePassResult => {
       for (const point of comparable.points) {
         const xIndex = findBarIndexByTs(primarySeries.bars, point.ts)
         if (
-          xIndex < input.viewport.startIndex ||
-          xIndex > input.viewport.endIndex
+          !isIndexVisible(input.viewport, xIndex)
         ) {
           continue
         }
@@ -926,10 +919,13 @@ export const renderPricePass = (input: PricePassInput): PricePassResult => {
 
     const transformedBars = state.transformedBars
     const indexOffset = primarySeries.bars.length - transformedBars.length
-    const visibleStart = Math.max(0, input.viewport.startIndex - indexOffset)
+    const visibleStart = Math.max(
+      0,
+      Math.floor(input.viewport.startIndex) - indexOffset,
+    )
     const visibleEnd = Math.min(
       transformedBars.length - 1,
-      input.viewport.endIndex - indexOffset,
+      Math.ceil(input.viewport.endIndex) - indexOffset,
     )
     const transformedVisibleBars =
       visibleEnd >= visibleStart

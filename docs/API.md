@@ -340,24 +340,38 @@ Line and rectangle drawings show ΔPrice and % change measurement labels when a 
 
 ## Interaction Model
 
-### Mouse and keyboard
+The viewport is continuous: `startIndex` and `endIndex` are fractional, so every gesture below moves the chart by exactly the amount of input and the bar under the cursor stays under the cursor. Zooming in by eight notches and out by eight lands back on the same view.
 
-- **Scroll wheel**: zoom X axis (time).
-- **Cmd/Ctrl + scroll wheel**: zoom Y axis (price) only.
-- **Drag**: pan left/right with inertial deceleration after release.
-- **Drag on price axis**: zoom Y axis independently.
-- **Double-click on price axis**: reset Y-axis zoom to auto-fit.
-- **Double-click on chart area**: fit all visible bars into view.
+### Mouse and trackpad
+
+- **Scroll wheel**: zoom the time axis about the cursor. One mouse notch is a 10% step; a trackpad tick is proportional to its delta, so a two-finger scroll tracks the fingers instead of jumping a notch per event.
+- **Two-finger horizontal swipe** or **Shift + wheel**: pan.
+- **Trackpad pinch**: zoom the time axis about the fingers. Browsers deliver a pinch as a Ctrl + wheel event; Ctrl + a mouse notch is the same 10% step.
+- **Wheel over the price axis**, or **Alt/Option + wheel** (Cmd + wheel also works): zoom the price axis about the price under the cursor. This switches the price scale to manual until it is reset.
+- **Drag**: pan, with inertial deceleration after release.
+- **Drag on the time axis**: zoom the time axis, anchored at the right edge. Left zooms out, right zooms in.
+- **Drag on the price axis**: zoom the price axis independently.
+- **Double-click on the time axis**: reset the zoom to `defaultViewport` at the latest bar.
+- **Double-click on the price axis**: reset the price scale to auto-fit.
+- **Double-click on the chart area**: scroll to the latest bar.
 - **Keyboard shortcuts**: undo/redo, lock, hide, fit, delete, escape.
+
+Wheel zoom glides: each event moves a target and a `requestAnimationFrame` loop eases the displayed span toward it (time constant 90 ms for discrete notches, 40 ms for a trackpad stream). A burst of notches compounds into one motion that speeds up and settles. Set `handleScale.smoothWheel: false` to snap per event instead.
+
+### Zoom limits
+
+- `performance.viewportMinBars` (default 5) is the fewest bars a gesture can leave on screen.
+- `timeScale.maxBarSpacing` is the most pixels per bar (default: half the plot width, so two bars fill it). The stricter of the two wins.
+- `timeScale.minBarSpacing` is the fewest pixels per bar (default 0.5), the zoom-out ceiling for gestures. Programmatic viewports (`fitContent`, presets, `setViewport`) are not bounded by it.
 
 ### Touch (mobile / tablet)
 
 - **One-finger drag**: pan with inertia.
-- **Two-finger pinch**: zoom X axis.
+- **Two-finger pinch**: zoom the time axis about the midpoint between the fingers; moving both fingers pans.
 
 ### Inertial scrolling
 
-After a pan gesture, the chart decelerates using an exponential decay (factor 0.92 per frame via `requestAnimationFrame`) until velocity drops below threshold.
+After a pan gesture, the chart decelerates using an exponential decay (factor 0.92 per frame via `requestAnimationFrame`) until velocity drops below a twentieth of a bar per frame.
 
 ### Granular interaction control
 
@@ -378,6 +392,7 @@ Disable individual gestures without affecting others:
       pinch: true,
       axisPressedMouseMove: true,
       axisDoubleClickReset: true,
+      smoothWheel: true,
     },
     kineticScroll: { touch: true, mouse: true },
   }}

@@ -1,12 +1,10 @@
 import { computePriceRange, valueToY } from '../../data/scales'
 import { strokeLine, toLinePoints } from './utils'
 import type { IndicatorPresenter } from '../../../types'
+import { getVisibleBars } from '../../data/viewport-slicer'
 
 export const zigzagPresenter: IndicatorPresenter = (context) => {
-  const visibleBars = context.bars.slice(
-    context.viewport.startIndex,
-    context.viewport.endIndex + 1,
-  )
+  const visibleBars = getVisibleBars(context.bars, context.viewport)
   const range = computePriceRange(visibleBars)
 
   const points = toLinePoints(

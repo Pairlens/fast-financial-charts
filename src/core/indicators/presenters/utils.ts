@@ -6,6 +6,7 @@ import type {
   IndicatorPresenterContext,
   NumericRange,
 } from '../../../types'
+import { isIndexVisible } from '../../data/viewport-slicer'
 
 export const toLinePoints = (
   bars: Array<ChartBar>,
@@ -24,7 +25,7 @@ export const toLinePoints = (
     }
 
     const index = findBarIndexByTs(bars, value.ts)
-    if (index < viewport.startIndex || index > viewport.endIndex) {
+    if (!isIndexVisible(viewport, index)) {
       continue
     }
 
@@ -57,7 +58,7 @@ export const toMultiLinePoints = (
 
   for (const value of values) {
     const index = findBarIndexByTs(bars, value.ts)
-    if (index < viewport.startIndex || index > viewport.endIndex) {
+    if (!isIndexVisible(viewport, index)) {
       continue
     }
 

@@ -118,6 +118,12 @@ export type ScaleHandleConfig = {
   pinch?: boolean
   axisPressedMouseMove?: boolean
   axisDoubleClickReset?: boolean
+  /**
+   * Glide wheel zoom toward its target instead of snapping per event
+   * (default true). A burst of mouse notches compounds into one eased motion;
+   * a trackpad stream is smoothed by well under a frame.
+   */
+  smoothWheel?: boolean
 }
 
 export type KineticScrollConfig = {

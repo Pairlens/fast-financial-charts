@@ -8,6 +8,7 @@ import type {
   SeriesMarker,
 } from '../../../types'
 import type { PriceScaleMode } from '../../../types/viewport'
+import { getVisibleBars, isIndexVisible } from '../../data/viewport-slicer'
 
 export type MarkersPassInput = {
   ctx: CanvasRenderingContext2D
@@ -53,10 +54,7 @@ export const renderMarkersPass = (input: MarkersPassInput): void => {
   const chartHeight = Math.max(1, height - timeAxisHeight)
   const total = Math.max(1, viewport.endIndex - viewport.startIndex + 1)
 
-  const visibleBars = bars.slice(
-    Math.max(0, viewport.startIndex),
-    viewport.endIndex + 1,
-  )
+  const visibleBars = getVisibleBars(bars, viewport)
   const basePrice = visibleBars[0]?.close ?? 0
   const needsTransform = mode === 'percentage' || mode === 'indexedTo100'
 
@@ -67,7 +65,7 @@ export const renderMarkersPass = (input: MarkersPassInput): void => {
 
   for (const marker of markers) {
     const barIndex = findBarIndexByTs(bars, marker.time)
-    if (barIndex < viewport.startIndex || barIndex > viewport.endIndex) {
+    if (!isIndexVisible(viewport, barIndex)) {
       continue
     }
 

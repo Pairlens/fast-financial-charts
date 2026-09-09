@@ -8,6 +8,13 @@ export {
 export type { ThemePreset } from './core/theme/tokens'
 export { ChartEngine } from './core/engine/chart-engine'
 export {
+  barIndexAtRatio,
+  getVisibleBars,
+  isIndexVisible,
+  viewportSpan,
+  visibleBarRange,
+} from './core/data/viewport-slicer'
+export {
   createCustomIndicatorPresenter,
   resolveCustomSeriesColor,
 } from './core/indicators/presenters/custom-series-presenter'

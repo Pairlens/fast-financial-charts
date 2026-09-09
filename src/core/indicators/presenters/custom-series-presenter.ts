@@ -11,6 +11,7 @@ import type {
   IndicatorPresenterContext,
   NumericRange,
 } from '../../../types'
+import { getVisibleBars, isIndexVisible } from '../../data/viewport-slicer'
 
 export type CustomRenderSeriesSpec = {
   key: string
@@ -125,7 +126,7 @@ const toSegments = (
     }
 
     const index = findBarIndexByTs(bars, point.ts)
-    if (index < viewport.startIndex || index > viewport.endIndex) {
+    if (!isIndexVisible(viewport, index)) {
       current = null
       continue
     }
@@ -216,7 +217,7 @@ const drawHistogram = (
     }
 
     const index = findBarIndexByTs(bars, point.ts)
-    if (index < viewport.startIndex || index > viewport.endIndex) {
+    if (!isIndexVisible(viewport, index)) {
       continue
     }
 
@@ -310,10 +311,7 @@ export const createCustomIndicatorPresenter = (
 
     const range = isOverlay
       ? computePriceRange(
-          context.bars.slice(
-            context.viewport.startIndex,
-            context.viewport.endIndex + 1,
-          ),
+          getVisibleBars(context.bars, context.viewport),
         )
       : computeSpecRange(context, spec)
     const yFromValue = (value: number): number => valueToY(value, range, height)

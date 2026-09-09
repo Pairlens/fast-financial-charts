@@ -1,12 +1,10 @@
 import { computePriceRange, valueToY } from '../../data/scales'
 import type { IndicatorPresenter } from '../../../types'
+import { getVisibleBars } from '../../data/viewport-slicer'
 
 export const pivotPointsPresenter: IndicatorPresenter = (context) => {
   const { ctx, width, height, theme } = context
-  const visibleBars = context.bars.slice(
-    context.viewport.startIndex,
-    context.viewport.endIndex + 1,
-  )
+  const visibleBars = getVisibleBars(context.bars, context.viewport)
   const range = computePriceRange(visibleBars)
 
   // Use the last visible value to draw horizontal lines

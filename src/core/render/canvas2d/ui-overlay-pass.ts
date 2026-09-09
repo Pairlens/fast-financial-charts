@@ -9,6 +9,7 @@ import type {
   NumericRange,
 } from '../../../types'
 import type { PriceScaleMode, TimeTickType } from '../../../types/viewport'
+import { barIndexAtRatio, visibleBarRange } from '../../data/viewport-slicer'
 
 type UiOverlayPassInput = {
   ctx: CanvasRenderingContext2D
@@ -133,11 +134,9 @@ export const renderUiOverlayPass = (input: UiOverlayPassInput): void => {
   // in plot space, so dividing by the full canvas would report a bar to the
   // left of the one actually under the cursor.
   const ratio = Math.max(0, Math.min(1, input.crosshair.x / chartWidth))
-  const index = Math.min(
-    input.bars.length - 1,
-    Math.max(0, input.viewport.startIndex + Math.round(ratio * total - 0.5)),
-  )
+  const index = barIndexAtRatio(input.viewport, ratio, input.bars.length)
   const bar = input.bars[index]
+  const visible = visibleBarRange(input.viewport, input.bars.length)
 
   // ── Horizontal line price label (at live crosshair Y) ──
 
@@ -190,9 +189,8 @@ export const renderUiOverlayPass = (input: UiOverlayPassInput): void => {
 
   // ── X-axis time label ──
   if (bar && input.crosshair.x >= 0 && input.crosshair.x <= chartWidth) {
-    const firstBar = input.bars[Math.max(0, input.viewport.startIndex)]
-    const lastBarVis =
-      input.bars[Math.min(input.bars.length - 1, input.viewport.endIndex)]
+    const firstBar = input.bars[visible.start]
+    const lastBarVis = input.bars[visible.end]
     const spanMs =
       firstBar && lastBarVis ? Math.abs(lastBarVis.ts - firstBar.ts) : 0
 
@@ -226,7 +224,7 @@ export const renderUiOverlayPass = (input: UiOverlayPassInput): void => {
 
     const anchorTs =
       input.hoveredDrawing.type === 'hline'
-        ? input.bars[input.viewport.endIndex]?.ts
+        ? input.bars[visible.end]?.ts
         : input.hoveredDrawing.type === 'vline'
           ? input.hoveredDrawing.ts
           : pointAnchor?.ts
@@ -235,7 +233,7 @@ export const renderUiOverlayPass = (input: UiOverlayPassInput): void => {
       input.hoveredDrawing.type === 'hline'
         ? input.hoveredDrawing.price
         : input.hoveredDrawing.type === 'vline'
-          ? input.bars[input.viewport.endIndex]?.close
+          ? input.bars[visible.end]?.close
           : pointAnchor?.price
 
     const safeTs = anchorTs ?? 0

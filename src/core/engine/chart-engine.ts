@@ -7,9 +7,13 @@ import {
 import { findBarIndexByTs } from '../data/binary-search'
 import { isPriceTransformChartType } from '../data/price-transforms'
 import {
+  barIndexAtRatio,
   clampViewport,
+  getVisibleBars,
   reanchorViewportToRight,
   viewportFromPreset,
+  viewportSpan,
+  visibleBarRange,
 } from '../data/viewport-slicer'
 import { createDefaultDrawingRegistry } from '../drawings/registry'
 import { toDrawingPoint, toXFromTs, toYFromPrice } from '../drawings/transforms'
@@ -54,6 +58,20 @@ import { CandleProgram } from '../render/webgl/programs/candle-program'
 import { LineProgram } from '../render/webgl/programs/line-program'
 import { ThickLineProgram } from '../render/webgl/programs/thick-line-program'
 import { PaneManager } from './pane-manager'
+import {
+  AXIS_DRAG_GAIN,
+  NOTCH_EASE_TAU_MS,
+  STREAM_EASE_TAU_MS,
+  anchorIndexAt,
+  clampSpan,
+  classifyWheel,
+  easeTowards,
+  normalizeWheelDelta,
+  priceRangeLimits,
+  rangeAroundAnchor,
+  spanAroundAnchor,
+} from './zoom-math'
+import type { SpanLimits } from './zoom-math'
 import { resolveTickRenderFlags } from './tick-render-path'
 import { RafScheduler } from './raf-scheduler'
 import { DirtyFlags, hasDirtyFlag } from './dirty-flags'
@@ -132,6 +150,7 @@ type PointerMode =
   | 'move-drawing'
   | 'resize-handle'
   | 'y-axis-zoom'
+  | 'x-axis-zoom'
   | 'resize-pane'
 
 type PointerDragState = {
@@ -404,9 +423,35 @@ export class ChartEngine {
 
   private activeTouches = new Map<number, { x: number; y: number }>()
 
-  private pinchStartDist = 0
+  /**
+   * A live two-finger pinch. The anchor is the index-space point that sat
+   * between the fingers when the pinch began; every move re-solves the
+   * viewport so that point stays under the (moving) midpoint, which makes a
+   * pinch zoom about the fingers and a two-finger drag pan.
+   */
+  private pinch: {
+    startDist: number
+    startSpan: number
+    anchorIndex: number
+  } | null = null
 
-  private pinchStartSpan = 0
+  // ── Wheel zoom glide ──
+
+  /**
+   * Where wheel zoom is heading. Each wheel event moves the target span (in
+   * log space, so in and out cancel) and re-reads the anchor under the cursor;
+   * a rAF loop eases the displayed span toward it. A burst of mouse notches
+   * therefore compounds into one motion that speeds up and settles, and a
+   * trackpad stream is smoothed by less than a frame.
+   */
+  private zoomGlide: {
+    targetSpan: number
+    anchorIndex: number
+    anchorRatio: number
+    tau: number
+    lastTime: number
+    rafId: number
+  } | null = null
 
   // ── Inertial scrolling ──
 
@@ -907,15 +952,14 @@ export class ChartEngine {
     if (
       this.pointerDrag.mode === 'pan' &&
       scrollEnabled &&
-      this.pointerDrag.viewportStart
+      this.pointerDrag.viewportStart &&
+      !this.pinch
     ) {
-      const total = Math.max(
-        1,
-        this.pointerDrag.viewportStart.endIndex -
-          this.pointerDrag.viewportStart.startIndex,
-      )
+      const total = viewportSpan(this.pointerDrag.viewportStart)
       const deltaRatio = (x - this.pointerDrag.startX) / this.getPlotWidth()
-      const shift = Math.round(-deltaRatio * total)
+      // Fractional: the chart follows the pointer pixel for pixel rather than
+      // snapping a bar at a time.
+      const shift = -deltaRatio * total
 
       // Track velocity for inertial scrolling
       const now = performance.now()
@@ -958,6 +1002,25 @@ export class ChartEngine {
         max: center + half,
       }
       this.markDirty(DirtyFlags.GEOMETRY | DirtyFlags.OVERLAY | DirtyFlags.UI)
+      return
+    }
+
+    if (
+      this.pointerDrag.mode === 'x-axis-zoom' &&
+      this.pointerDrag.viewportStart &&
+      this.store.interaction.handleScale?.axisPressedMouseMove !== false
+    ) {
+      const startViewport = this.pointerDrag.viewportStart
+      // Drag left to zoom out, right to zoom in, anchored at the right edge
+      // the way TradingView scales its time axis.
+      const scale = Math.exp((this.pointerDrag.startX - x) * AXIS_DRAG_GAIN)
+      const nextSpan = clampSpan(
+        viewportSpan(startViewport) * scale,
+        this.spanLimits(),
+      )
+      this.store.setViewport(
+        spanAroundAnchor(nextSpan, startViewport.endIndex + 1, 1),
+      )
       return
     }
 
@@ -1118,6 +1181,25 @@ export class ChartEngine {
         active: true,
         anchorY: y,
         startRange: this.currentPriceRange,
+      }
+      return
+    }
+
+    if (
+      x < this.getPlotWidth() &&
+      y >= this.getPlotHeight() &&
+      y < this.currentLayout.mainHeight
+    ) {
+      this.pointerDrag = {
+        mode: 'x-axis-zoom',
+        startX: x,
+        startY: y,
+        viewportStart: { ...state.viewport },
+        drawingStartPoint: null,
+        drawingId: null,
+        handleId: null,
+        originalDrawing: null,
+        multiPointIndex: 0,
       }
       return
     }
@@ -1365,6 +1447,15 @@ export class ChartEngine {
         this.priceRangeOverride = null
         this.markDirty(DirtyFlags.GEOMETRY)
       }
+      // Double-click on time axis → reset the zoom to the default preset
+      else if (
+        x < this.getPlotWidth() &&
+        y >= this.getPlotHeight() &&
+        y < this.currentLayout.mainHeight &&
+        this.store.interaction.handleScale?.axisDoubleClickReset !== false
+      ) {
+        this.resetTimeScale()
+      }
       // Double-click on chart area → fit viewport
       else {
         this.store.scrollToLatest()
@@ -1463,7 +1554,8 @@ export class ChartEngine {
     if (this.inertiaRaf) cancelAnimationFrame(this.inertiaRaf)
     const decay = 0.92
     const step = (): void => {
-      if (Math.abs(this.panVelocity) < 0.3) {
+      // Fractional bars per frame: the tail eases out instead of stepping.
+      if (Math.abs(this.panVelocity) < 0.05) {
         this.panVelocity = 0
         this.inertiaRaf = null
         return
@@ -1471,24 +1563,88 @@ export class ChartEngine {
       this.panVelocity *= decay
       const state = this.store.getStateRef()
       const vp = state.viewport
-      const shift = Math.round(this.panVelocity)
-      if (shift !== 0) {
-        this.store.setViewport({
-          startIndex: vp.startIndex + shift,
-          endIndex: vp.endIndex + shift,
-        })
-      }
+      const shift = this.panVelocity
+      this.store.setViewport({
+        startIndex: vp.startIndex + shift,
+        endIndex: vp.endIndex + shift,
+      })
       this.inertiaRaf = requestAnimationFrame(step)
     }
     this.inertiaRaf = requestAnimationFrame(step)
   }
 
+  /** Stop every viewport motion: pan inertia and the wheel-zoom glide. */
   private stopInertia(): void {
+    this.stopPanInertia()
+    this.cancelZoomGlide()
+  }
+
+  private stopPanInertia(): void {
     if (this.inertiaRaf) {
       cancelAnimationFrame(this.inertiaRaf)
       this.inertiaRaf = null
     }
     this.panVelocity = 0
+  }
+
+  private cancelZoomGlide(): void {
+    if (this.zoomGlide) {
+      cancelAnimationFrame(this.zoomGlide.rafId)
+      this.zoomGlide = null
+    }
+  }
+
+  private spanLimits(): SpanLimits {
+    const ts = this.latestProps.timeScale
+    return {
+      minBars: this.store.performance.viewportMinBars,
+      plotWidth: this.getPlotWidth(),
+      minBarSpacing: ts?.minBarSpacing,
+      maxBarSpacing: ts?.maxBarSpacing,
+    }
+  }
+
+  /** One frame of the wheel-zoom glide: ease the span, keep the anchor. */
+  private readonly stepZoomGlide = (now: number): void => {
+    const glide = this.zoomGlide
+    if (!glide) return
+    const dt = Math.min(64, Math.max(0, now - glide.lastTime))
+    glide.lastTime = now
+
+    const span = viewportSpan(this.store.getStateRef().viewport)
+    let next = easeTowards(span, glide.targetSpan, dt, glide.tau)
+    // Under a hundredth of a bar is under a pixel at any zoom worth having.
+    const settled = Math.abs(glide.targetSpan - next) < 0.01
+    if (settled) next = glide.targetSpan
+
+    this.store.setViewport(
+      spanAroundAnchor(next, glide.anchorIndex, glide.anchorRatio),
+    )
+
+    if (settled) {
+      this.zoomGlide = null
+      return
+    }
+    glide.rafId = requestAnimationFrame(this.stepZoomGlide)
+  }
+
+  /** Put the time axis back on the default preset, at the latest bar. */
+  private resetTimeScale(): void {
+    const barsLength =
+      this.store.seriesStore.getPrimarySeriesRef()?.bars.length ?? 0
+    if (barsLength === 0) return
+    this.stopInertia()
+    const preset = this.latestProps.defaultViewport ?? {
+      type: 'last-bars' as const,
+      bars: 120,
+    }
+    this.store.setViewport(
+      viewportFromPreset(
+        barsLength,
+        preset,
+        this.latestProps.timeScale?.rightOffset ?? 0,
+      ),
+    )
   }
 
   // ── Touch / pinch handlers ──
@@ -1504,14 +1660,27 @@ export class ChartEngine {
 
     if (this.activeTouches.size === 2) {
       event.preventDefault()
-      const [a, b] = Array.from(this.activeTouches.values())
-      this.pinchStartDist = Math.hypot(b.x - a.x, b.y - a.y)
-      const state = this.store.getStateRef()
-      this.pinchStartSpan = Math.max(
-        2,
-        state.viewport.endIndex - state.viewport.startIndex + 1,
-      )
+      this.beginPinch()
     }
+  }
+
+  private beginPinch(): void {
+    const [a, b] = Array.from(this.activeTouches.values())
+    const rect = this.getCanvasRect()
+    const viewport = this.store.getStateRef().viewport
+    const midX = (a.x + b.x) / 2 - rect.left
+    const ratio = Math.max(0, Math.min(1, midX / this.getPlotWidth()))
+    this.pinch = {
+      startDist: Math.hypot(b.x - a.x, b.y - a.y),
+      startSpan: viewportSpan(viewport),
+      anchorIndex: anchorIndexAt(viewport, ratio),
+    }
+    // The first finger's pointer events already opened a pan; the pinch owns
+    // the viewport from here, and its release must not fling it.
+    if (this.pointerDrag.mode === 'pan') {
+      this.resetPointerDrag()
+    }
+    this.panVelocity = 0
   }
 
   private readonly onTouchMove = (event: TouchEvent): void => {
@@ -1522,94 +1691,142 @@ export class ChartEngine {
       })
     }
 
-    if (this.activeTouches.size === 2) {
-      event.preventDefault()
-      if (this.store.interaction.handleScale?.pinch === false) return
-      const [a, b] = Array.from(this.activeTouches.values())
-      const dist = Math.hypot(b.x - a.x, b.y - a.y)
-      if (this.pinchStartDist < 1) return
+    if (this.activeTouches.size !== 2 || !this.pinch) return
+    event.preventDefault()
+    if (this.store.interaction.handleScale?.pinch === false) return
 
-      const scale = this.pinchStartDist / dist
-      const nextSpan = Math.max(
-        this.store.performance.viewportMinBars,
-        Math.round(this.pinchStartSpan * scale),
-      )
+    const [a, b] = Array.from(this.activeTouches.values())
+    const dist = Math.hypot(b.x - a.x, b.y - a.y)
+    if (this.pinch.startDist < 1 || dist < 1) return
 
-      const state = this.store.getStateRef()
-      const vp = state.viewport
-      const mid = Math.round((vp.startIndex + vp.endIndex) / 2)
-      this.store.setViewport({
-        startIndex: mid - Math.floor(nextSpan / 2),
-        endIndex: mid + Math.ceil(nextSpan / 2),
-      })
-    }
+    const nextSpan = clampSpan(
+      this.pinch.startSpan * (this.pinch.startDist / dist),
+      this.spanLimits(),
+    )
+    const rect = this.getCanvasRect()
+    const midX = (a.x + b.x) / 2 - rect.left
+    const ratio = Math.max(0, Math.min(1, midX / this.getPlotWidth()))
+    this.store.setViewport(
+      spanAroundAnchor(nextSpan, this.pinch.anchorIndex, ratio),
+    )
   }
 
   private readonly onTouchEnd = (event: TouchEvent): void => {
     for (const touch of event.changedTouches) {
       this.activeTouches.delete(touch.identifier)
     }
+    if (this.activeTouches.size === 2) {
+      // Three fingers down to two: restart the pinch from the pair that stays.
+      this.beginPinch()
+    } else {
+      this.pinch = null
+    }
   }
 
+  /**
+   * Wheel input, normalised and classified in `zoom-math.ts`:
+   *
+   * - plain wheel zooms time, proportional to the delta and capped at one
+   *   notch, so a trackpad tick is a fraction of a mouse notch rather than a
+   *   full one;
+   * - a horizontal delta (two-finger swipe) or Shift+wheel pans;
+   * - Ctrl+wheel is a trackpad pinch (browsers synthesise it as one) and zooms
+   *   time about the fingers, never the price axis;
+   * - the price axis scales only with the cursor over its gutter, or with
+   *   Alt/Option (or Cmd) held, anchored at the price under the cursor.
+   */
   private readonly onWheel = (event: WheelEvent): void => {
-    if (
-      !this.store.interaction.wheelZoom ||
-      this.store.interaction.handleScale?.mouseWheel === false
-    ) {
-      return
-    }
-
-    event.preventDefault()
-    this.stopInertia()
-
-    const state = this.store.getStateRef()
-    const viewport = state.viewport
-    const span = Math.max(2, viewport.endIndex - viewport.startIndex + 1)
-
-    // ── Modifier-aware zoom ──
-    // Cmd/Ctrl + wheel → Y-axis zoom, plain wheel → X zoom
-    if (event.metaKey || event.ctrlKey) {
-      const zoomFactor = event.deltaY > 0 ? 1.08 : 0.92
-      const range = this.priceRangeOverride ?? this.currentPriceRange
-      const mid = (range.min + range.max) / 2
-      const halfSpan = ((range.max - range.min) / 2) * zoomFactor
-      this.priceRangeOverride = { min: mid - halfSpan, max: mid + halfSpan }
-      this.markDirty(DirtyFlags.GEOMETRY)
-      return
-    }
-
-    const zoomFactor = event.deltaY > 0 ? 1.12 : 0.88
-    let nextSpan = Math.max(
-      this.store.performance.viewportMinBars,
-      Math.round(span * zoomFactor),
-    )
-
-    // Enforce barSpacing limits from timeScale config
-    const ts = this.latestProps.timeScale
-    if (ts) {
-      const chartW = this.getPlotWidth()
-      if (ts.minBarSpacing) {
-        const maxBars = Math.round(chartW / ts.minBarSpacing)
-        nextSpan = Math.min(nextSpan, maxBars)
-      }
-      if (ts.maxBarSpacing) {
-        const minBars = Math.max(2, Math.round(chartW / ts.maxBarSpacing))
-        nextSpan = Math.max(nextSpan, minBars)
-      }
-    }
+    const interaction = this.store.interaction
+    const scaleEnabled =
+      interaction.wheelZoom && interaction.handleScale?.mouseWheel !== false
+    const scrollEnabled = interaction.handleScroll?.mouseWheel !== false
+    if (!scaleEnabled && !scrollEnabled) return
 
     const rect = this.getCanvasRect()
     const x = event.clientX - rect.left
-    const ratio = Math.max(0, Math.min(1, x / this.getPlotWidth()))
-    const center = viewport.startIndex + Math.round(ratio * span - 0.5)
+    const y = event.clientY - rect.top
+    const plotWidth = this.getPlotWidth()
 
-    const nextStart = center - Math.floor(nextSpan * ratio)
-    const nextEnd = nextStart + nextSpan - 1
-
-    this.store.setViewport({
-      startIndex: nextStart,
-      endIndex: nextEnd,
+    const gesture = classifyWheel({
+      delta: normalizeWheelDelta(event),
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+      overPriceAxis: this.getEffectivePriceAxisWidth() > 0 && x >= plotWidth,
     })
+    if (gesture.kind === 'none') return
+
+    if (gesture.kind === 'pan') {
+      if (!scrollEnabled) return
+      event.preventDefault()
+      this.stopInertia()
+      const viewport = this.store.getStateRef().viewport
+      // Pixels to bars at the current bar spacing: the chart moves with the
+      // fingers 1:1.
+      const shift = gesture.pixels / (plotWidth / viewportSpan(viewport))
+      this.store.setViewport({
+        startIndex: viewport.startIndex + shift,
+        endIndex: viewport.endIndex + shift,
+      })
+      return
+    }
+
+    if (!scaleEnabled) return
+    event.preventDefault()
+
+    if (gesture.kind === 'zoom-price') {
+      this.stopInertia()
+      const range = this.priceRangeOverride ?? this.currentPriceRange
+      // Linear scale: keep the price under the cursor still. The transformed
+      // scales are not linear in price, so they scale about the middle.
+      const anchorRatio =
+        this.store.getStateRef().priceScaleMode === 'normal'
+          ? 1 - y / this.getPlotHeight()
+          : 0.5
+      this.priceRangeOverride = rangeAroundAnchor(
+        range,
+        Math.exp(gesture.logRange),
+        anchorRatio,
+        priceRangeLimits(range),
+      )
+      this.markDirty(DirtyFlags.GEOMETRY | DirtyFlags.OVERLAY | DirtyFlags.UI)
+      return
+    }
+
+    this.stopPanInertia()
+    const viewport = this.store.getStateRef().viewport
+    const ratio = Math.max(0, Math.min(1, x / plotWidth))
+    // Anchor on what is under the cursor NOW, mid-glide included, so moving
+    // the mouse between notches zooms about the new spot.
+    const anchorIndex = anchorIndexAt(viewport, ratio)
+    const baseSpan = this.zoomGlide?.targetSpan ?? viewportSpan(viewport)
+    const targetSpan = clampSpan(
+      baseSpan * Math.exp(gesture.logSpan),
+      this.spanLimits(),
+    )
+
+    if (interaction.handleScale?.smoothWheel === false) {
+      this.store.setViewport(spanAroundAnchor(targetSpan, anchorIndex, ratio))
+      return
+    }
+
+    const tau = gesture.discrete ? NOTCH_EASE_TAU_MS : STREAM_EASE_TAU_MS
+    if (this.zoomGlide) {
+      this.zoomGlide.targetSpan = targetSpan
+      this.zoomGlide.anchorIndex = anchorIndex
+      this.zoomGlide.anchorRatio = ratio
+      this.zoomGlide.tau = tau
+      return
+    }
+    this.zoomGlide = {
+      targetSpan,
+      anchorIndex,
+      anchorRatio: ratio,
+      tau,
+      lastTime: performance.now(),
+      rafId: requestAnimationFrame(this.stepZoomGlide),
+    }
   }
 
   private readonly onContextMenu = (event: MouseEvent): void => {
@@ -1840,11 +2057,7 @@ export class ChartEngine {
     if (needsTransform) {
       const primary = this.store.seriesStore.getPrimarySeriesRef()
       const viewport = this.store.getStateRef().viewport
-      const visibleBars =
-        primary?.bars.slice(
-          Math.max(0, viewport.startIndex),
-          viewport.endIndex + 1,
-        ) ?? []
+      const visibleBars = primary ? getVisibleBars(primary.bars, viewport) : []
       const basePrice = visibleBars[0]?.close ?? 0
       displayValue = transformPriceForMode(price, basePrice, mode)
     }
@@ -1886,11 +2099,7 @@ export class ChartEngine {
 
     const primary = this.store.seriesStore.getPrimarySeriesRef()
     const viewport = this.store.getStateRef().viewport
-    const visibleBars =
-      primary?.bars.slice(
-        Math.max(0, viewport.startIndex),
-        viewport.endIndex + 1,
-      ) ?? []
+    const visibleBars = primary ? getVisibleBars(primary.bars, viewport) : []
     const basePrice = visibleBars[0]?.close ?? 0
     return inversePriceForMode(displayValue, basePrice, mode)
   }
@@ -1918,15 +2127,8 @@ export class ChartEngine {
     if (!primary || primary.bars.length === 0) return null
 
     const viewport = this.store.getStateRef().viewport
-    const total = Math.max(1, viewport.endIndex - viewport.startIndex + 1)
-    const ratio = Math.max(0, Math.min(1, x / this.getPlotWidth()))
-    const index = Math.max(
-      0,
-      Math.min(
-        primary.bars.length - 1,
-        viewport.startIndex + Math.round(ratio * total - 0.5),
-      ),
-    )
+    const ratio = x / this.getPlotWidth()
+    const index = barIndexAtRatio(viewport, ratio, primary.bars.length)
     return primary.bars[index]?.ts ?? null
   }
 
@@ -1962,13 +2164,11 @@ export class ChartEngine {
       const eased = 1 - Math.pow(1 - t, 3)
 
       const startVp = state.viewport
-      const currentStart = Math.round(
+      const currentStart =
         startVp.startIndex +
-          (endViewport.startIndex - startVp.startIndex) * eased,
-      )
-      const currentEnd = Math.round(
-        startVp.endIndex + (endViewport.endIndex - startVp.endIndex) * eased,
-      )
+        (endViewport.startIndex - startVp.startIndex) * eased
+      const currentEnd =
+        startVp.endIndex + (endViewport.endIndex - startVp.endIndex) * eased
       this.store.setViewport({ startIndex: currentStart, endIndex: currentEnd })
 
       if (t < 1) {
@@ -2036,14 +2236,13 @@ export class ChartEngine {
     }
 
     const viewport = this.store.getStateRef().viewport
-    const total = Math.max(1, viewport.endIndex - viewport.startIndex + 1)
-    const ratio = Math.max(0, Math.min(1, x / this.getPlotWidth()))
-    const index = viewport.startIndex + Math.round(ratio * total - 0.5)
-
-    return (
-      primary.bars[Math.max(0, Math.min(primary.bars.length - 1, index))] ??
-      null
+    const index = barIndexAtRatio(
+      viewport,
+      x / this.getPlotWidth(),
+      primary.bars.length,
     )
+
+    return primary.bars[index] ?? null
   }
 
   private buildMouseEventParams(x: number, y: number): MouseEventParams {
@@ -2059,8 +2258,9 @@ export class ChartEngine {
   private emitVisibleTimeRangeChange(viewport: ChartViewport): void {
     const primary = this.store.seriesStore.getPrimarySeriesRef()
     const bars = primary?.bars ?? []
-    const fromBar = bars[Math.max(0, viewport.startIndex)]
-    const toBar = bars[Math.min(bars.length - 1, viewport.endIndex)]
+    const visible = visibleBarRange(viewport, bars.length)
+    const fromBar = bars[visible.start]
+    const toBar = bars[visible.end]
 
     const payload = {
       viewport,
@@ -2330,10 +2530,7 @@ export class ChartEngine {
     const viewport = snapshot.viewport
 
     const series = snapshot.series.map((item) => {
-      const visibleBars = item.bars.slice(
-        viewport.startIndex,
-        viewport.endIndex + 1,
-      )
+      const visibleBars = getVisibleBars(item.bars, viewport)
       if (!limit) {
         return {
           id: item.id,

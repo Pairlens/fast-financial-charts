@@ -23,6 +23,7 @@ import type {
   PriceScaleMode,
   TimeTickType,
 } from '../../../types/viewport'
+import { getVisibleBars } from '../../data/viewport-slicer'
 
 type TextOverlayPassInput = {
   ctx: CanvasRenderingContext2D
@@ -106,10 +107,7 @@ const quoteLineY = (
   chartHeight: number,
   mode: PriceScaleMode,
 ): { y: number; displayPrice: number } | null => {
-  const visibleBars = bars.slice(
-    Math.max(0, viewport.startIndex),
-    viewport.endIndex + 1,
-  )
+  const visibleBars = getVisibleBars(bars, viewport)
   const basePrice = visibleBars[0]?.close ?? 0
   const displayPrice =
     mode === 'percentage' || mode === 'indexedTo100'
@@ -193,10 +191,7 @@ export const renderTextOverlayPass = (input: TextOverlayPassInput): void => {
 
   if (input.lastClose != null) {
     // For percentage/indexed modes, show the last close line at its display-space value
-    const visibleBars = bars.slice(
-      Math.max(0, viewport.startIndex),
-      viewport.endIndex + 1,
-    )
+    const visibleBars = getVisibleBars(bars, viewport)
     const basePrice = visibleBars[0]?.close ?? 0
     const lastCloseDisplay =
       mode === 'percentage' || mode === 'indexedTo100'
@@ -254,10 +249,7 @@ export const renderTextOverlayPass = (input: TextOverlayPassInput): void => {
   // ── Series price lines ──
 
   if (input.priceLines && input.priceLines.length > 0) {
-    const visibleBarsForPL = bars.slice(
-      Math.max(0, viewport.startIndex),
-      viewport.endIndex + 1,
-    )
+    const visibleBarsForPL = getVisibleBars(bars, viewport)
     const basePriceForPL = visibleBarsForPL[0]?.close ?? 0
 
     for (const priceLine of input.priceLines) {
@@ -388,10 +380,7 @@ export const renderTextOverlayPass = (input: TextOverlayPassInput): void => {
   // ── Last close label on price axis ──
 
   if (priceAxisVisible && input.lastClose != null) {
-    const visibleBarsLC = bars.slice(
-      Math.max(0, viewport.startIndex),
-      viewport.endIndex + 1,
-    )
+    const visibleBarsLC = getVisibleBars(bars, viewport)
     const basePriceLC = visibleBarsLC[0]?.close ?? 0
     const lastCloseDisplayLC =
       mode === 'percentage' || mode === 'indexedTo100'

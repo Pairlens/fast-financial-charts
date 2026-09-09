@@ -1,6 +1,7 @@
 import { computePriceRange, valueToY } from '../../data/scales'
 import { drawTitleLabel, strokeLine, toMultiLinePoints } from './utils'
 import type { IndicatorPresenter } from '../../../types'
+import { getVisibleBars } from '../../data/viewport-slicer'
 
 const MA_COLORS = [
   '#2196f3',
@@ -15,10 +16,7 @@ const MA_COLORS = [
 
 export const multiMaPresenter: IndicatorPresenter = (context) => {
   const { ctx, width, height, theme, indicator } = context
-  const visibleBars = context.bars.slice(
-    context.viewport.startIndex,
-    context.viewport.endIndex + 1,
-  )
+  const visibleBars = getVisibleBars(context.bars, context.viewport)
   const range = computePriceRange(visibleBars)
 
   const periodsStr = String(indicator.params.periods ?? '10,20,50,100,200')

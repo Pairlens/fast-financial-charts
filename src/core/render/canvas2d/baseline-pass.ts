@@ -7,6 +7,7 @@ import type {
   NumericRange,
 } from '../../../types'
 import type { PriceScaleMode } from '../../../types/viewport'
+import { visibleBarRange } from '../../data/viewport-slicer'
 
 export type BaselinePassInput = {
   ctx: CanvasRenderingContext2D
@@ -44,8 +45,7 @@ export const renderBaselinePass = (input: BaselinePassInput): void => {
   const chartWidth = Math.max(1, width - priceAxisWidth)
   const chartHeight = Math.max(1, height - timeAxisHeight)
 
-  const start = Math.max(0, viewport.startIndex)
-  const end = Math.min(bars.length - 1, viewport.endIndex)
+  const { start, end } = visibleBarRange(viewport, bars.length)
   if (end < start) {
     return
   }

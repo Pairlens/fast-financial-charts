@@ -2,6 +2,7 @@ import { computeNumericRange, valueToY } from '../../data/scales'
 import { findBarIndexByTs } from '../../data/binary-search'
 import { strokeLine } from './utils'
 import type { IndicatorPresenter } from '../../../types'
+import { isIndexVisible } from '../../data/viewport-slicer'
 
 export const macdPresenter: IndicatorPresenter = (context) => {
   const total = Math.max(
@@ -28,8 +29,7 @@ export const macdPresenter: IndicatorPresenter = (context) => {
   for (const point of context.values) {
     const index = findBarIndexByTs(context.bars, point.ts)
     if (
-      index < context.viewport.startIndex ||
-      index > context.viewport.endIndex
+      !isIndexVisible(context.viewport, index)
     ) {
       continue
     }

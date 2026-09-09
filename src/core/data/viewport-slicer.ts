@@ -48,15 +48,59 @@ export const clampViewport = (
     }
   }
 
-  const center = Math.round((start + end) / 2)
-  const half = Math.floor(safeMinBars / 2)
-  const nextStart = Math.max(0, center - half)
+  const center = (start + end) / 2
+  const nextStart = Math.max(0, center - safeMinBars / 2)
   const nextEnd = Math.min(maxIndex, nextStart + safeMinBars - 1)
 
   return {
     startIndex: Math.max(0, nextEnd - safeMinBars + 1),
     endIndex: nextEnd,
   }
+}
+
+/** Visible bar count. Fractional: the viewport is continuous, not a bar count. */
+export const viewportSpan = (viewport: ChartViewport): number =>
+  Math.max(1, viewport.endIndex - viewport.startIndex + 1)
+
+/**
+ * The integer bar range a viewport shows, clamped to the data.
+ *
+ * Bar `i` occupies index space `[i, i + 1)` and the viewport shows
+ * `[startIndex, endIndex + 1)`, so a fractional edge on either side pulls in
+ * the bar it cuts through: `floor` on the left, `ceil` on the right. Slicing
+ * with the raw floats would drop the partially visible last bar and, for any
+ * `bars[viewport.endIndex]` lookup, read `undefined`.
+ */
+export const visibleBarRange = (
+  viewport: ChartViewport,
+  barsLength: number,
+): { start: number; end: number } => {
+  if (barsLength <= 0) return { start: 0, end: -1 }
+  const start = Math.max(0, Math.floor(viewport.startIndex))
+  const end = Math.min(barsLength - 1, Math.ceil(viewport.endIndex))
+  return { start, end }
+}
+
+/** Whether bar `index` has any pixel inside the viewport. */
+export const isIndexVisible = (
+  viewport: ChartViewport,
+  index: number,
+): boolean =>
+  index >= Math.floor(viewport.startIndex) &&
+  index <= Math.ceil(viewport.endIndex)
+
+/**
+ * The bar under a horizontal ratio of the plot (0 = left edge, 1 = right),
+ * clamped to the data. The inverse of `x = (index - startIndex + 0.5) / span`.
+ */
+export const barIndexAtRatio = (
+  viewport: ChartViewport,
+  ratio: number,
+  barsLength: number,
+): number => {
+  const clamped = Math.max(0, Math.min(1, ratio))
+  const index = Math.floor(viewport.startIndex + clamped * viewportSpan(viewport))
+  return Math.max(0, Math.min(barsLength - 1, index))
 }
 
 export const clampViewportWithTimeScale = (
@@ -97,16 +141,15 @@ export const viewportFromPreset = (
   }
 }
 
-export const getVisibleBars = (
-  bars: Array<ChartBar>,
+export const getVisibleBars = <T = ChartBar>(
+  bars: ReadonlyArray<T>,
   viewport: ChartViewport,
-): Array<ChartBar> => {
+): Array<T> => {
   if (bars.length === 0) {
     return []
   }
 
-  const start = Math.max(0, viewport.startIndex)
-  const end = Math.min(bars.length - 1, viewport.endIndex)
+  const { start, end } = visibleBarRange(viewport, bars.length)
 
   if (end < start) {
     return []

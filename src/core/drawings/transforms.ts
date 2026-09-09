@@ -7,6 +7,7 @@ import type {
   NumericRange,
 } from '../../types'
 import type { PriceScaleMode } from '../../types/viewport'
+import { barIndexAtRatio } from '../data/viewport-slicer'
 
 export type DrawingTransformContext = {
   bars: Array<ChartBar>
@@ -53,19 +54,12 @@ export const toDrawingPoint = (
   context: DrawingTransformContext,
   snap = false,
 ): DrawingPoint => {
-  const total = Math.max(
-    1,
-    context.viewport.endIndex - context.viewport.startIndex + 1,
-  )
   const ratio = Math.max(0, Math.min(1, x / Math.max(1, context.width)))
-  const index = Math.max(
-    context.viewport.startIndex,
-    Math.min(
-      context.viewport.endIndex,
-      context.viewport.startIndex + Math.round(ratio * total - 0.5),
-    ),
+  const barIndex = barIndexAtRatio(
+    context.viewport,
+    ratio,
+    context.bars.length,
   )
-  const barIndex = Math.max(0, Math.min(context.bars.length - 1, index))
   const bar = context.bars[barIndex] ?? context.bars[context.bars.length - 1]
 
   let price =
